@@ -9,15 +9,4 @@ var pool = mysql.createPool({
     multipleStatements:true
 })
 
-module.exports = {
-    pool: pool,
-    getDatabasereq:function(req,res){
-        pool.query("CALL spGetPeople()",function(error,result){
-            if(error){
-                res.send(error)
-            }else{
-                res.send(result)
-            }
-        })
-    }
-}    
+module.exports = pool;

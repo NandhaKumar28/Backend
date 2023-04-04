@@ -3,6 +3,16 @@ let people = JSON.parse(fs.readFileSync('./data/people.json')); //reading the fi
 const Joi = require('joi') //JOI
 const validator = require('express-joi-validation').createValidator({}) //JOI validator
 
+var mysql = require('mysql');
+var pool = mysql.createPool({
+    host:"db4free.net",
+    user:"react123",
+    password:"reactroot",
+    database:"nodedatabase123",
+    connectionLimit:100,
+    multipleStatements:true
+})
+
 //JOI validation schema for POST and PUT requests
 const querySchema = Joi.object({
     firstName: Joi.string().required(), //This defines that the input will be a string and it is required
@@ -28,7 +38,7 @@ const deleteSchema = Joi.object({
 
 //Exporting the module so that it can be accessed in get.js
 module.exports = {
-    //This GET request returns all the people
+    //This GET request returns all the people (File System)
     getAllPeople: (req,res) => {
         res.status(200).json({
             // status:"Success",
@@ -38,7 +48,7 @@ module.exports = {
         })
     },
 
-    //This GET request returns people by the given parameter
+    //This GET request returns people by the given parameter (File System)
     getPeoplebyParams: (req,res)=>{
         const {error,value} = getSchema.validate(req.body)    //Validation with JOI
         if(error){
@@ -65,7 +75,7 @@ module.exports = {
        let confirmPassword = req.query.confirmPassword 
        let personConfirmPassword = people.find(el => el.confirmPassword === confirmPassword)
        
-       //Checks which parameter is provided
+       //Checks which parameter is provided 
        if(personId){
            res.send(personId)
        }
@@ -95,7 +105,7 @@ module.exports = {
        }
    },
 
-   //POST request
+   //POST request (File System)
    postPeople: (req,res) =>{
     const {error,value} = querySchema.validate(req.body,{abortEarly:false}) //Validation with JOI
     if(error){
@@ -103,7 +113,7 @@ module.exports = {
         return res.send(error.details)
     }    
      
-    const newId = people[people.length - 1].id + 1; //Automatically generates id 
+    const newId = people[people.length - 1].id + 1; //Generates id 
 
     const newPerson = Object.assign({id: newId}, req.body)
 
@@ -111,7 +121,7 @@ module.exports = {
 
     fs.writeFile('./data/people.json', JSON.stringify(people),(err) =>{
         res.status(201).json({     //201 means created
-            // status:"Success",
+            status:"Success",
             data:{
                 person:newPerson
             }
@@ -120,7 +130,7 @@ module.exports = {
    // res.send('created')
 } ,
 
-  //PUT request
+  //PUT request (File System)
   putPeople: (req,res) => {
 
     const {error,value} = querySchema.validate(req.body,{abortEarly:false})    //Abort early will see through the complete req body 
@@ -156,7 +166,7 @@ fs.writeFile('./data/people.json',JSON.stringify(people), (err) =>{
 })
 },
 
-  //DELETE request  
+  //DELETE request  (File System)
   deletePeople: (req,res)=>{
     const {error,value} = validator.params(deleteSchema)   
     if(error){
@@ -185,5 +195,89 @@ fs.writeFile('./data/people.json',JSON.stringify(people), (err) =>{
             }
         })
     })    
+},
+getDatabasereq:function(req,res){
+    let sql = "SELECT * FROM Admin"
+    pool.query(sql,function(error,result){
+        if(error){
+            res.send(error)
+        }else{
+            res.send(result)
+        }
+    })
+},
+
+dbPostReq:(req,res) =>{
+    const param1 = req.body.firstName;
+    const param2 = req.body.lastName;
+    const param3 = req.body.email;
+    const param4 = req.body.password;
+    const param5 = req.body.confirmPassword;
+
+    let sql = "CALL spInsertPeople(?,?,?,?,?)"
+
+    pool.query(sql,[param1,param2,param3,param4,param5],(err,result) => {
+        if(err){
+            console.log(err);
+            res.status(500).send("Error inserting data into the database")
+        }else{
+            const id = result[0][0].id
+            res.send('Data Inserted successfully')
+        }
+    })
+},
+
+dbPutReq:(req,res) => {
+    const id = req.params.id
+    const param1 = req.body.firstName;
+    const param2 = req.body.lastName;
+    const param3 = req.body.email;
+    const param4 = req.body.password;
+    const param5 = req.body.confirmPassword;
+
+    let sql = "CALL spUpdateAdmin(?,?,?,?,?)"
+
+    pool.query(sql,[param1,param2,param3,param4,param5],(err,result) => {
+        if(err){
+            console.error(err);
+            res.status(500).send("Error updating data in database")
+        }else{
+            res.send("Data updated successfully")
+        }
+    })
+},
+
+dbDeleteReq:(req,res) =>{
+    const id = req.params.id; 
+
+    let sql = "CALL spDeleteAdmin(?)"
+
+    pool.query(sql,[id],(err,result) => {
+        if(err){
+            console.error(err);
+            res.status(500).send("Error deleting user")
+        }else{
+            res.send("User deleted successfully")
+        }
+    })
+},
+
+dbgetPeoplebyParams:(req,res) =>{
+    const param1 = req.body.firstName;
+    const param2 = req.body.lastName;
+    const param3 = req.body.email;
+    const param4 = req.body.password;
+    const param5 = req.body.confirmPassword;
+
+    let sql = "CALL spGetPeopleParams(?,?,?,?,?)"
+
+    pool.query(sql,[param1,param2,param3,param4,param5],(err,result) => {
+        if(error){
+            res.send(error)
+        }else{
+            res.send(result)
+        }
+    })
 }
+
 }
